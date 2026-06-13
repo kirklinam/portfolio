@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Image Editor — Kirk Linam Portfolio</title>
+<style>
+:root{
+  --navy:#0a2d52;--navy2:#0e3a68;--blue:#1d6fc0;--blue2:#3e91e6;--sky:#7fb6ec;
+  --sky1:#d8ebfb;--sky0:#eef6fe;--ink:#0b2239;--soft:#3a536c;--line:rgba(21,90,153,.18);
+  --accent:#26c6da;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f3f8fe;color:var(--ink);line-height:1.5}
+header{position:sticky;top:0;z-index:20;background:linear-gradient(160deg,#06223f,#0e3a68);color:#eaf3fc;padding:18px 24px;box-shadow:0 8px 24px rgba(8,34,63,.25)}
+header h1{font-size:1.25rem;font-weight:700;letter-spacing:-.02em}
+header p{color:#bcd6f2;font-size:.9rem;margin-top:4px;max-width:80ch}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px}
+.btn{font:inherit;font-weight:600;font-size:.9rem;border:0;border-radius:999px;padding:.55rem 1.1rem;cursor:pointer;transition:.2s}
+.btn.primary{background:linear-gradient(120deg,var(--blue2),var(--accent));color:#04243f}
+.btn.primary:hover{transform:translateY(-1px)}
+.btn.ghost{background:rgba(255,255,255,.1);color:#dcebfb;border:1px solid rgba(174,212,246,.35)}
+.btn.ghost:hover{background:rgba(255,255,255,.2)}
+select,.pill-sel{font:inherit;border-radius:8px;border:1px solid var(--line);padding:.3rem .5rem;background:#fff;color:var(--ink)}
+.bar label{font-size:.85rem;color:#bcd6f2;display:flex;align-items:center;gap:6px}
+.saved{font-size:.8rem;color:#9fe6ef}
+main{max-width:1280px;margin:0 auto;padding:24px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:22px}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 4px 14px rgba(10,45,82,.07)}
+.card.changed{border-color:var(--accent);box-shadow:0 0 0 2px rgba(38,198,218,.3),0 4px 14px rgba(10,45,82,.07)}
+.previewWrap{background:repeating-conic-gradient(#eef6fe 0% 25%,#dcebfb 0% 50%) 50%/22px 22px;padding:14px}
+.frame{position:relative;width:100%;border-radius:10px;overflow:hidden;background:var(--sky0);cursor:grab;box-shadow:inset 0 0 0 1px var(--line);aspect-ratio:4/3}
+.frame.dragging{cursor:grabbing}
+.frame img{width:100%;height:100%;object-fit:cover;object-position:50% 50%;display:block}
+.focal{position:absolute;width:26px;height:26px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 2px var(--accent),0 2px 6px rgba(0,0,0,.4);transform:translate(-50%,-50%);pointer-events:none;display:none}
+.frame.cover .focal{display:block}
+.meta{padding:10px 14px 4px}
+.meta .pg{font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--blue)}
+.meta .nm{font-size:.85rem;color:var(--soft)}
+.ctrls{padding:10px 14px 16px;display:grid;gap:10px}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.row .lbl{font-size:.78rem;font-weight:600;color:var(--soft);min-width:52px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{font:inherit;font-size:.8rem;border:0;background:#fff;color:var(--soft);padding:.4rem .7rem;cursor:pointer}
+.seg button.on{background:var(--blue);color:#fff}
+input[type=range]{flex:1;accent-color:var(--blue)}
+.zv{font-size:.78rem;color:var(--soft);min-width:42px;text-align:right}
+.mini{font-size:.78rem;color:var(--blue);background:none;border:0;cursor:pointer;padding:0;text-decoration:underline}
+.hint{font-size:.78rem;color:var(--soft);background:var(--sky0);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--navy);color:#eaf3fc;padding:.7rem 1.2rem;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.3);transition:.3s;opacity:0}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+.count{font-size:.85rem;color:#bcd6f2}
+</style>
+</head>
+<body>
+<header>
+  <h1>🖼️ Portfolio Image Editor</h1>
+  <p>Drag the dot on any photo to choose what stays centered. Switch <b>Fill</b> (crop to fill the frame) or <b>Whole</b> (show the entire photo, no cropping). Change the frame <b>Shape</b> or <b>Zoom</b> as needed. When you're happy, click <b>Download CSS</b> and drop the file into your site folder (replace the existing <code>image-adjustments.css</code>), then refresh the site.</p>
+  <div class="bar">
+    <button class="btn primary" id="dl">⬇ Download image-adjustments.css</button>
+    <button class="btn ghost" id="copy">Copy CSS</button>
+    <button class="btn ghost" id="resetAll">Reset all</button>
+    <label>Show page:
+      <select id="filter"><option value="">All pages</option></select>
+    </label>
+    <span class="count" id="count"></span>
+    <span class="saved" id="saved"></span>
+  </div>
+</header>
+<main>
+  <div class="hint" style="margin-bottom:16px">Tip: photos that get cut off at the edges usually look best on <b>Whole</b>. Photos where a face/subject is off to one side look best on <b>Fill</b> with the dot dragged onto the subject. Your changes auto-save in this browser; the downloaded CSS is what actually updates the site.</div>
+  <div class="grid" id="grid"></div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const IMAGES = [{"name": "img01.jpg", "page": "Home", "alt": "Kirk Linam", "ratio": "4 / 5"}, {"name": "img02.jpg", "page": "Home", "alt": "Kirk Linam in the classroom", "ratio": "4 / 5"}, {"name": "img03.jpg", "page": "Home", "alt": "", "ratio": "16 / 10"}, {"name": "img04.jpg", "page": "Home", "alt": "", "ratio": "16 / 10"}, {"name": "img05.jpg", "page": "Home", "alt": "", "ratio": "16 / 10"}, {"name": "img45.jpg", "page": "Home", "alt": "", "ratio": "16 / 10"}, {"name": "img06.jpg", "page": "Assessment & Curriculum", "alt": "District assessment redesign materials", "ratio": "4 / 3"}, {"name": "img07.jpg", "page": "Assessment & Curriculum", "alt": "Rationale for changing standard distribution", "ratio": "16 / 9"}, {"name": "img08.jpg", "page": "Assessment & Curriculum", "alt": "Pacing guide", "ratio": "4 / 3"}, {"name": "img09.jpg", "page": "Assessment & Curriculum", "alt": "Pacing guide calendar", "ratio": "4 / 3"}, {"name": "img10.jpg", "page": "Assessment & Curriculum", "alt": "Building Thinking Classrooms in action", "ratio": "4 / 3"}, {"name": "img11.jpg", "page": "Assessment & Curriculum", "alt": "Student work samples", "ratio": "4 / 3"}, {"name": "img12.jpg", "page": "Assessment & Curriculum", "alt": "Quadratic regression with climate data", "ratio": "4 / 3"}, {"name": "img13.jpg", "page": "Assessment & Curriculum", "alt": "PD session on grading methods", "ratio": "4 / 3"}, {"name": "img14.jpg", "page": "Assessment & Curriculum", "alt": "Teachers in professional development", "ratio": "4 / 3"}, {"name": "img15.jpg", "page": "Assessment & Curriculum", "alt": "Professional development materials", "ratio": "4 / 3"}, {"name": "img16.jpg", "page": "Assessment & Curriculum", "alt": "Concept map facilitation PD", "ratio": "4 / 3"}, {"name": "img17.jpg", "page": "Assessment & Curriculum", "alt": "Students making thinking visible", "ratio": "4 / 3"}, {"name": "img18.jpg", "page": "Community Partnerships", "alt": "Community partners program", "ratio": "4 / 3"}, {"name": "img19.jpg", "page": "Community Partnerships", "alt": "Students working with community partners", "ratio": "4 / 3"}, {"name": "img20.jpg", "page": "Community Partnerships", "alt": "Advisory class community work", "ratio": "4 / 3"}, {"name": "img21.jpg", "page": "Community Partnerships", "alt": "Community organization visit", "ratio": "4 / 3"}, {"name": "img22.jpg", "page": "Community Partnerships", "alt": "Students engaged in community action", "ratio": "4 / 3"}, {"name": "img23.jpg", "page": "Community Partnerships", "alt": "Advisory students collaborating", "ratio": "4 / 3"}, {"name": "img24.jpg", "page": "Community Partnerships", "alt": "Planning the tree planting", "ratio": "4 / 3"}, {"name": "img25.jpg", "page": "Community Partnerships", "alt": "Tree planting day with students", "ratio": "4 / 3"}, {"name": "img26.jpg", "page": "Community Partnerships", "alt": "Unit rate and carbon dioxide absorption pre-work", "ratio": "16 / 9"}, {"name": "img27.jpg", "page": "Community Partnerships", "alt": "Parent email about the event", "ratio": "4 / 3"}, {"name": "img28.jpg", "page": "Community Partnerships", "alt": "Event communication", "ratio": "4 / 3"}, {"name": "img29.jpg", "page": "Community Partnerships", "alt": "Students learning to plant trees, May 25th 2024", "ratio": "16 / 9"}, {"name": "img30.jpg", "page": "Community Partnerships", "alt": "Grade-wide forum presentations", "ratio": "4 / 3"}, {"name": "img31.jpg", "page": "Community Partnerships", "alt": "Student reflections and work", "ratio": "4 / 3"}, {"name": "img32.jpg", "page": "Classroom Climate", "alt": "Bengal Excellence leaderboard", "ratio": "4 / 3"}, {"name": "img33.jpg", "page": "Classroom Climate", "alt": "Character trait classroom display", "ratio": "4 / 3"}, {"name": "img34.jpg", "page": "Classroom Climate", "alt": "HIVE character value posters", "ratio": "4 / 3"}, {"name": "img35.jpg", "page": "Classroom Climate", "alt": "HIVE progress tracking board", "ratio": "4 / 3"}, {"name": "img36.jpg", "page": "Classroom Climate", "alt": "Students engaging with HIVE values", "ratio": "4 / 3"}, {"name": "img37.jpg", "page": "Classroom Climate", "alt": "HIVE classroom materials", "ratio": "4 / 3"}, {"name": "img38.jpg", "page": "Classroom Climate", "alt": "Student leaderboard display", "ratio": "4 / 3"}, {"name": "img39.jpg", "page": "Classroom Climate", "alt": "PD on classroom culture and climate", "ratio": "4 / 3"}, {"name": "img40.jpg", "page": "Classroom Climate", "alt": "Teachers adopting the HIVE program", "ratio": "4 / 3"}, {"name": "img41.jpg", "page": "Classroom Climate", "alt": "Replicated HIVE displays in other classrooms", "ratio": "4 / 3"}, {"name": "img42.jpg", "page": "Classroom Climate", "alt": "Mapping Justice in Dallas park dilation investigation", "ratio": "16 / 9"}, {"name": "img43.jpg", "page": "Classroom Climate", "alt": "Student gallery walk park representations", "ratio": "4 / 3"}, {"name": "img44.jpg", "page": "Classroom Climate", "alt": "Students commenting on each other's work", "ratio": "4 / 3"}, {"name": "img46.jpg", "page": "Technology & AI", "alt": "Sibme engagement diagnostics", "ratio": "4 / 3"}, {"name": "img47.jpg", "page": "Technology & AI", "alt": "Teacher tracker dashboard", "ratio": "4 / 3"}, {"name": "img48.jpg", "page": "Technology & AI", "alt": "Birds Eye Tracker back-end", "ratio": "4 / 3"}, {"name": "img49.jpg", "page": "Technology & AI", "alt": "Progress portal data view", "ratio": "4 / 3"}, {"name": "img50.jpg", "page": "Technology & AI", "alt": "Student progress portal view", "ratio": "4 / 3"}, {"name": "img51.jpg", "page": "Technology & AI", "alt": "Student-facing dashboard with skills", "ratio": "4 / 3"}, {"name": "img52.jpg", "page": "Technology & AI", "alt": "Small group creator tool", "ratio": "4 / 3"}, {"name": "img53.jpg", "page": "Technology & AI", "alt": "Peer tutor group recommendations", "ratio": "4 / 3"}, {"name": "img54.jpg", "page": "Technology & AI", "alt": "Desmos Academy login and modules", "ratio": "4 / 3"}, {"name": "img55.jpg", "page": "Technology & AI", "alt": "Desmos Academy worked example module", "ratio": "4 / 3"}, {"name": "img56.jpg", "page": "Technology & AI", "alt": "Desmos Academy student tracking spreadsheet", "ratio": "4 / 3"}, {"name": "img57.jpg", "page": "Technology & AI", "alt": "Desmos Academy graduation and integrity features", "ratio": "4 / 3"}];
+const SHAPES = [
+  {k:"current",label:"Original"},
+  {k:"4 / 3",label:"4:3 Landscape"},
+  {k:"3 / 2",label:"3:2"},
+  {k:"16 / 9",label:"16:9 Wide"},
+  {k:"21 / 9",label:"21:9 Banner"},
+  {k:"1 / 1",label:"1:1 Square"},
+  {k:"4 / 5",label:"4:5 Portrait"},
+  {k:"3 / 4",label:"3:4 Portrait"},
+  {k:"2 / 3",label:"2:3 Tall"},
+];
+const STORE="kirkImgAdjust_v1";
+let state=JSON.parse(localStorage.getItem(STORE)||"{}");
+
+function def(name,ratio){return {fit:"cover",x:50,y:50,zoom:1,shape:"current",_ratio:ratio};}
+function get(img){const s=state[img.name]||{};return Object.assign(def(img.name,img.ratio),s,{_ratio:img.ratio});}
+function changed(img){const s=state[img.name];if(!s)return false;return s.fit&&s.fit!=="cover"||s.x!==undefined&&s.x!==50||s.y!==undefined&&s.y!==50||s.zoom&&s.zoom!==1||s.shape&&s.shape!=="current";}
+function save(){localStorage.setItem(STORE,JSON.stringify(state));flagSaved();render();}
+let savedT;function flagSaved(){const e=document.getElementById("saved");e.textContent="✓ saved";clearTimeout(savedT);savedT=setTimeout(()=>e.textContent="",1500);}
+
+function applyToFrame(frame,img,cfg){
+  const ratio = cfg.shape==="current"?cfg._ratio:cfg.shape;
+  frame.style.aspectRatio=ratio;
+  const el=frame.querySelector("img");
+  el.style.objectFit=cfg.fit;
+  el.style.objectPosition=cfg.x+"% "+cfg.y+"%";
+  el.style.transform = cfg.zoom!==1?("scale("+cfg.zoom+")"):"";
+  el.style.transformOrigin=cfg.x+"% "+cfg.y+"%";
+  el.style.background="var(--sky0)";
+  frame.classList.toggle("cover",cfg.fit==="cover");
+  const f=frame.querySelector(".focal");
+  if(f){f.style.left=cfg.x+"%";f.style.top=cfg.y+"%";}
+}
+
+function buildCard(img){
+  const cfg=get(img);
+  const card=document.createElement("div");card.className="card"+(changed(img)?" changed":"");
+  card.dataset.page=img.page;card.dataset.name=img.name;
+  card.innerHTML=`
+    <div class="previewWrap">
+      <div class="frame">
+        <img src="images/${img.name}" alt="">
+        <div class="focal"></div>
+      </div>
+    </div>
+    <div class="meta"><div class="pg">${img.page}</div><div class="nm">${img.alt? img.alt+" · ":""}${img.name}</div></div>
+    <div class="ctrls">
+      <div class="row"><span class="lbl">Fit</span>
+        <span class="seg fit"><button data-v="cover">Fill</button><button data-v="contain">Whole</button></span>
+        <span class="lbl" style="margin-left:auto">Shape</span>
+        <select class="shape"></select>
+      </div>
+      <div class="row"><span class="lbl">Zoom</span><input type="range" class="zoom" min="1" max="2.2" step="0.05"><span class="zv"></span></div>
+      <div class="row"><button class="mini reset">↺ reset this photo</button></div>
+    </div>`;
+  const frame=card.querySelector(".frame");
+  const fitSeg=card.querySelector(".seg.fit");
+  const shapeSel=card.querySelector(".shape");
+  const zoom=card.querySelector(".zoom");
+  const zv=card.querySelector(".zv");
+  SHAPES.forEach(s=>{const o=document.createElement("option");o.value=s.k;o.textContent=s.label+(s.k==="current"?" ("+img.ratio.replace(/ /g,"")+")":"");shapeSel.appendChild(o);});
+  function refresh(){
+    const c=get(img);
+    fitSeg.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.v===c.fit));
+    shapeSel.value=c.shape;zoom.value=c.zoom;zv.textContent=Math.round(c.zoom*100)+"%";
+    applyToFrame(frame,img,c);
+    card.classList.toggle("changed",changed(img));
+  }
+  function update(p){state[img.name]=Object.assign(get(img),p);delete state[img.name]._ratio;save();}
+  fitSeg.querySelectorAll("button").forEach(b=>b.onclick=()=>update({fit:b.dataset.v}));
+  shapeSel.onchange=()=>update({shape:shapeSel.value});
+  zoom.oninput=()=>{zv.textContent=Math.round(zoom.value*100)+"%";const c=get(img);c.zoom=parseFloat(zoom.value);applyToFrame(frame,img,c);};
+  zoom.onchange=()=>update({zoom:parseFloat(zoom.value)});
+  card.querySelector(".reset").onclick=()=>{delete state[img.name];save();};
+  // drag focal
+  let dragging=false;
+  function setFromEvent(e){
+    const r=frame.getBoundingClientRect();
+    const cx=(e.touches?e.touches[0].clientX:e.clientX);
+    const cy=(e.touches?e.touches[0].clientY:e.clientY);
+    let x=Math.round(((cx-r.left)/r.width)*100);
+    let y=Math.round(((cy-r.top)/r.height)*100);
+    x=Math.max(0,Math.min(100,x));y=Math.max(0,Math.min(100,y));
+    const c=get(img);c.x=x;c.y=y;applyToFrame(frame,img,c);return {x,y};
+  }
+  frame.addEventListener("pointerdown",e=>{dragging=true;frame.classList.add("dragging");frame.setPointerCapture(e.pointerId);setFromEvent(e);});
+  frame.addEventListener("pointermove",e=>{if(dragging)setFromEvent(e);});
+  frame.addEventListener("pointerup",e=>{if(dragging){dragging=false;frame.classList.remove("dragging");const p=setFromEvent(e);update({x:p.x,y:p.y});}});
+  refresh();
+  card._refresh=refresh;
+  return card;
+}
+
+function render(){
+  const grid=document.getElementById("grid");
+  const filt=document.getElementById("filter").value;
+  grid.innerHTML="";
+  let n=0,ch=0;
+  IMAGES.forEach(img=>{
+    if(filt&&img.page!==filt)return;
+    grid.appendChild(buildCard(img));n++;
+  });
+  IMAGES.forEach(img=>{if(changed(img))ch++;});
+  document.getElementById("count").textContent=`${IMAGES.length} photos · ${ch} adjusted`;
+}
+
+function genCSS(){
+  let out="/* image-adjustments.css — generated by the Portfolio Image Editor */\n/* Drop this file in the site folder (same place as styles.css) and refresh. */\n\n";
+  let any=false;
+  IMAGES.forEach(img=>{
+    if(!changed(img))return;any=true;
+    const c=get(img);const sel=`img[src*="${img.name}"]`;
+    const fr=`.shotframe ${sel}, .frame ${sel}, .thumb ${sel}`;
+    const framed=(c.shape!=="current")||(c.fit==="cover");
+    const ar=(c.shape!=="current")?c.shape:(c.fit==="cover"?"4 / 3":null);
+    out+=`/* ${img.page} — ${img.alt||img.name} */\n`;
+    out+=`${fr}{`;
+    out+=`object-fit:${c.fit} !important;`;
+    out+=`object-position:${c.x}% ${c.y}% !important;`;
+    if(framed){out+=`height:100% !important;`;}
+    if(c.zoom!==1){out+=`transform:scale(${c.zoom}) !important;transform-origin:${c.x}% ${c.y}% !important;`;}
+    out+=`background:var(--sky-50,#eef6fe);}\n`;
+    if(ar){
+      out+=`.shotframe:has(> ${sel}), .frame:has(> ${sel}), .thumb:has(> ${sel}){aspect-ratio:${ar} !important;}\n`;
+    }
+    out+="\n";
+  });
+  if(!any)out+="/* No adjustments yet — tweak some photos above, then download again. */\n";
+  return out;
+}
+function download(){
+  const blob=new Blob([genCSS()],{type:"text/css"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="image-adjustments.css";a.click();
+  toast("Downloaded image-adjustments.css — drop it in your site folder & refresh");
+}
+function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),3200);}
+
+document.getElementById("dl").onclick=download;
+document.getElementById("copy").onclick=()=>{navigator.clipboard.writeText(genCSS()).then(()=>toast("CSS copied to clipboard"));};
+document.getElementById("resetAll").onclick=()=>{if(confirm("Reset all photo adjustments?")){state={};save();}};
+const fsel=document.getElementById("filter");
+[...new Set(IMAGES.map(i=>i.page))].forEach(p=>{const o=document.createElement("option");o.value=p;o.textContent=p;fsel.appendChild(o);});
+fsel.onchange=render;
+render();
+</script>
+</body>
+</html>
